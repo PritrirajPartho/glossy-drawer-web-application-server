@@ -62,7 +62,7 @@ async function run() {
     });
 
 
-    // get new add item
+    // get new add item or course
 
     app.get("/newcourses", async (req, res) => {
       const result = await instructorsAddedCollection.find().toArray();
@@ -75,7 +75,7 @@ async function run() {
       res.send(result);
     });
 
-
+//selcected class for a user
     app.post('/addClass', async (req, res) => {
       const addClass = req.body;
       console.log(addClass)
@@ -112,8 +112,8 @@ async function run() {
 run().catch(console.dir);
 
 
-// ----------
 
+// ----------
 
 
 
@@ -125,6 +125,3 @@ app.listen(port, () => {
   console.log(`Glossy-Drawer Server is Running on Port ${port}`);
 });
 
-
-
-//   
