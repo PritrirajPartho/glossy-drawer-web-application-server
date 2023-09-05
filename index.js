@@ -40,6 +40,7 @@ async function run() {
     const instructorsCollection = client.db("GlossyDB").collection("instructors");
     const instructorsAddedCollection = client.db("GlossyDB").collection("newcourses");
     const selectedCollection = client.db('GlossyDB').collection('selected')
+    const usersCollection = client.db('GlossyDB').collection('users')
 
 
     // Reviews
@@ -61,9 +62,21 @@ async function run() {
       res.send(result);
     });
 
+    //users all of work...for mongodb + firebase
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
+      const existingUser = await usersCollection.findOne(query);
+
+      if (existingUser) {
+        return res.send({ message: "user already exists" });
+      } else {
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+      }
+    });
 
     // get new add item or course
-
     app.get("/newcourses", async (req, res) => {
       const result = await instructorsAddedCollection.find().toArray();
       res.send(result);
