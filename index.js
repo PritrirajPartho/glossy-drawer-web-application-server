@@ -1,12 +1,10 @@
 const express = require("express");
-const cors = require("cors");
 const app = express();
+const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
-
-
-// Middlewere
+//middleware..........
 app.use(cors());
 app.use(express.json());
 
@@ -39,8 +37,8 @@ async function run() {
     const coursesCollection = client.db("GlossyDB").collection("courses");
     const instructorsCollection = client.db("GlossyDB").collection("instructors");
     const instructorsAddedCollection = client.db("GlossyDB").collection("newcourses");
-    const selectedCollection = client.db('GlossyDB').collection('selected')
-    const usersCollection = client.db('GlossyDB').collection('users')
+    const selectedCollection = client.db('GlossyDB').collection('selected');
+    const usersCollection = client.db('GlossyDB').collection('users');
 
 
     // Reviews
@@ -63,6 +61,44 @@ async function run() {
     });
 
     //users all of work...for mongodb + firebase
+    // users related apis.......
+    app.get('/users/admin/:email',  async (req, res) => {
+      const email = req.params.email;
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    });
+
+    app.get('/users/instructor/:email', async (req, res) => {
+      const email = req.params.email;
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { instructor: user?.role === "instructor" };
+      res.send(result);
+    });
+
+
+    app.get('/allusers',  async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      console.log(result);
+      res.send(result);
+    });
+
+    app.get('/users',  async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      console.log(result);
+      res.send(result);
+    });
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email };
@@ -75,6 +111,35 @@ async function run() {
         res.send(result);
       }
     });
+
+    app.patch('/users/admin/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: "instructor",
+        },
+      };
+
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
 
     // get new add item or course
     app.get("/newcourses", async (req, res) => {
