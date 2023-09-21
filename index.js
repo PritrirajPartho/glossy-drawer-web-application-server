@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const SSLCommerzPayment = require('sslcommerz-lts')
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
@@ -16,7 +17,7 @@ app.use(express.json());
 // --------------
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://glossyUser:glossyPass@cluster0.axnscsq.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -27,6 +28,11 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+const store_id = 'test650352845b258'
+const store_passwd = 'test650352845b258@ssl'
+const is_live = false //true for live, false for sandbox
+
 
 async function run() {
   try {
@@ -39,6 +45,7 @@ async function run() {
     const instructorsAddedCollection = client.db("GlossyDB").collection("newcourses");
     const selectedCollection = client.db('GlossyDB').collection('selected');
     const usersCollection = client.db('GlossyDB').collection('users');
+    const productCollection = client.db('GlossyDB').collection('order');
 
 
     // Reviews
@@ -54,6 +61,20 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/courses/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log('40', id)
+      const query = { _id: new ObjectId(id) }
+      const user = await coursesCollection.findOne(query);
+      res.send(user)
+    })
+
+    // app.get('/courses/:id', (req, res) => {
+    //   const id = req.params.id;
+    //   const course = coursesCollection.find(n => n.id === id);
+    //   res.send(course)
+    // })
+
     // Instructors
     app.get("/instructors", async (req, res) => {
       const result = await instructorsCollection.find().toArray();
@@ -62,7 +83,7 @@ async function run() {
 
     //users all of work...for mongodb + firebase
     // users related apis.......
-    app.get('/users/admin/:email',  async (req, res) => {
+    app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
       if (req.decoded.email !== email) {
         res.send({ admin: false });
@@ -87,13 +108,13 @@ async function run() {
     });
 
 
-    app.get('/allusers',  async (req, res) => {
+    app.get('/allusers', async (req, res) => {
       const result = await usersCollection.find().toArray();
       console.log(result);
       res.send(result);
     });
 
-    app.get('/users',  async (req, res) => {
+    app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       console.log(result);
       res.send(result);
@@ -153,7 +174,7 @@ async function run() {
       res.send(result);
     });
 
-//selcected class for a user
+    //selcected class for a user
     app.post('/addClass', async (req, res) => {
       const addClass = req.body;
       console.log(addClass)
@@ -175,6 +196,84 @@ async function run() {
         .toArray();
       res.send(selected);
     });
+
+
+    app.delete('/addClass/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectedCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    app.post("/order", async (req, res) => {
+      const tran_id = new ObjectId().toString();
+
+      const product = await selectedCollection.findOne({
+        _id: new ObjectId(req.body.productId),
+      });
+      const data = {
+        total_amount: 100,
+        currency: 'BDT',
+        tran_id: tran_id, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${tran_id}`,
+        fail_url: 'http://localhost:3030/fail',
+        cancel_url: 'http://localhost:3030/cancel',
+        ipn_url: 'http://localhost:3030/ipn',
+        shipping_method: 'Courier',
+        product_name: 'Computer.',
+        product_category: 'Electronic',
+        product_profile: 'general',
+        cus_name: 'Customer Name',
+        cus_email: 'customer@example.com',
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: '01711111111',
+        cus_fax: '01711111111',
+        ship_name: 'Customer Name',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+      };
+      console.log(data)
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      sslcz.init(data).then(apiResponse => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL
+        res.send({ url: GatewayPageURL })
+
+        const finalOrder = {
+          product,
+          paidStatus: false,
+          tranjectionId: tran_id,
+        };
+        const result = productCollection.insertOne(finalOrder)
+
+        console.log('Redirecting to: ', GatewayPageURL)
+      });
+
+      app.post("/payment/success/:tranId", async (req, res) => {
+        console.log(req.params.tranId);
+        const result = await productCollection.updateOne(
+          { tranjectionId: req.params.tranId },
+          {
+            $set: {
+              paidStatus: true
+            }
+          }
+        );
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/success/${req.params.tranId}`)
+        }
+      })
+
+    })
 
 
     // Connect the client to the server	(optional starting in v4.7)
