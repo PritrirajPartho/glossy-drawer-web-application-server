@@ -64,6 +64,7 @@ async function run() {
     const selectedCollection = client.db('GlossyDB').collection('selected');
     const usersCollection = client.db('GlossyDB').collection('users');
     const productCollection = client.db('GlossyDB').collection('order');
+    const postCollection = client.db('GlossyDB').collection('post');
 
 
     // Reviews
@@ -78,6 +79,19 @@ async function run() {
       const result = await coursesCollection.find().toArray();
       res.send(result);
     });
+
+  app.patch('/users/instructor/:id', async (req, res) => {
+    const id = req.params.id;
+    console.log(id);
+    const filter = { _id: new ObjectId(id) };
+    const updateDoc = {
+      $set: {
+        role: "instructor",
+      },
+    };
+    const result = await usersCollection.updateOne(filter, updateDoc);
+    res.send(result);
+  });
 
     // Instructors
     app.get("/instructors", async (req, res) => {
@@ -298,13 +312,84 @@ async function run() {
 
     })
 
+  //add by devs
+  app.post("/userPost", async(req,res)=>{
+    let dataPost=req.body
+    let result=await postCollection.insertOne(dataPost)
+    res.send(result)
+  })
+
+  app.get("/post", async(req,res)=>{
+    // console.log(req.query.email)
+    let query={}
+    if(req.query?.email){
+      query={email:req.query.email}
+    }
+    let result= await postCollection.find(query).toArray();
+    // console.log(result)
+    res.send(result)
+  })
+
+  app.delete("/deletePost/:id",async(req,res)=>{
+    let id=req.params.id
+    let query={_id : new ObjectId (id)}
+    let result=await postCollection.deleteOne(query) 
+    res.send(result)
+  })
+// =============================
+
+  app.get("/allPost",async(req,res)=>{
+    let result=await postCollection.find().toArray()
+    res.send(result)
+  })
+
+  // profile unik user get 
+  app.get("/unikUser", async(req,res)=>{
+    let query={}
+    if(req.query?.email){
+      query={email:req.query.email}
+    }
+    let result= await usersCollection.find(query).toArray();
+    res.send(result)
+  })
+
+
+  // update profile user get 
+  app.put("/updateUser/:id",async(req,res)=>{
+      let upId=req.params.id
+      let upData=req.body
+      let filter={_id : new ObjectId (upId)}
+      let options={upsert :true}
+      let updateProfile={
+        $set:{
+          name:upData.nameValue,
+          photo:upData.photoValue,
+          totalFrinds:upData.TolatFdValue,
+          banner:upData.bannerValue,
+          intro:upData.introValue,
+          Jobs:upData.JobsValue,
+          Profesonal:upData.profesonalValue,
+          School:upData.schoolValue,
+          Collage:upData.collageValue,
+          Lives:upData.LivesValue,
+          relations:upData.relationsValue,
+          Location:upData.LocationValue,
+        }
+      }
+      let result=await usersCollection.updateOne(filter,updateProfile,options)
+      res.send(result)
+
+  })
+
+
 
     // Connect the client to the server	(optional starting in v4.7)
     client.connect();
     // Send a ping to confirm a successful connection
     //     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
+  }
+   finally {
     // Ensures that the client will close when you finish/error
     //     await client.close();
   }
@@ -312,9 +397,7 @@ async function run() {
 run().catch(console.dir);
 
 
-
 // ----------Developer: Pritiraj Partho
-
 
 
 app.get("/", (req, res) => {
