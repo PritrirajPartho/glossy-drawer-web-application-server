@@ -157,7 +157,6 @@ async function run() {
         role: "instructor",
       },
     };
-
     const result = await usersCollection.updateOne(filter, updateDoc);
     res.send(result);
   });
