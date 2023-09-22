@@ -1,15 +1,13 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
 //middleware..........
 app.use(cors());
 app.use(express.json());
-
-
-// -------------------------------------------------
 
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
@@ -54,8 +52,6 @@ const is_live = false //true for live, false for sandbox
 
 async function run() {
   try {
-
-
 
     const reviewsCollection = client.db("GlossyDB").collection("reviews");
     const coursesCollection = client.db("GlossyDB").collection("courses");
@@ -312,10 +308,7 @@ async function run() {
 run().catch(console.dir);
 
 
-
 // ----------Developer: Pritiraj Partho
-
-
 
 app.get("/", (req, res) => {
   res.send("Glossy-Drawer Server is Running");
