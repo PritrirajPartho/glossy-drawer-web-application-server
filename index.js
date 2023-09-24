@@ -34,7 +34,7 @@ const verifyJWT = (req, res, next) => {
 //----------------------------------------------
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = `mongodb+srv://glossyUser:glossyPass@cluster0.axnscsq.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.axnscsq.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -60,7 +60,30 @@ async function run() {
     const selectedCollection = client.db('GlossyDB').collection('selected');
     const usersCollection = client.db('GlossyDB').collection('users');
     const productCollection = client.db('GlossyDB').collection('order');
+    const postCollection = client.db('GlossyDB').collection('post');
 
+
+    //jwt work is here.........
+      app.post('/jwt', (req, res) => {
+          const user = req.body;
+          const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+            expiresIn: "1h",
+          });
+          res.send({ token });
+      });
+    
+    //  using verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+          const email = req.decoded.email;
+          const query = { email: email };
+          const user = await usersCollection.findOne(query);
+          if (user?.role !== "admin") {
+            return res
+              .status(403)
+              .send({ error: true, message: "forbidden message" });
+          }
+          next();
+    };
 
     // Reviews
     app.get("/reviews", async (req, res) => {
@@ -68,12 +91,12 @@ async function run() {
       res.send(result);
     });
 
-
     // Courses
     app.get("/courses", async (req, res) => {
       const result = await coursesCollection.find().toArray();
       res.send(result);
     });
+
 
     // Instructors
     app.get("/instructors", async (req, res) => {
@@ -82,8 +105,7 @@ async function run() {
     });
 
     //users all of work...for mongodb + firebase
-    // users related apis.......
-    app.get('/users/admin/:email', async (req, res) => {
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
       const email = req.params.email;
       if (req.decoded.email !== email) {
         res.send({ admin: false });
@@ -242,8 +264,8 @@ async function run() {
         product_name: 'Computer.',
         product_category: 'Electronic',
         product_profile: 'general',
-        cus_name: 'Customer Name',
-        cus_email: 'customer@example.com',
+        // cus_name: 'Customer Name',
+        // cus_email: 'customer@example.com',
         cus_add1: 'Dhaka',
         cus_add2: 'Dhaka',
         cus_city: 'Dhaka',
@@ -294,15 +316,84 @@ async function run() {
 
     })
 
+  //add by devs
+  app.post("/userPost", async(req,res)=>{
+    let dataPost=req.body
+    let result=await postCollection.insertOne(dataPost)
+    res.send(result)
+  })
+
+  app.get("/post", async(req,res)=>{
+    // console.log(req.query.email)
+    let query={}
+    if(req.query?.email){
+      query={email:req.query.email}
+    }
+    let result= await postCollection.find(query).toArray();
+    // console.log(result)
+    res.send(result)
+  })
+
+  app.delete("/deletePost/:id",async(req,res)=>{
+    let id=req.params.id
+    let query={_id : new ObjectId (id)}
+    let result=await postCollection.deleteOne(query) 
+    res.send(result)
+  })
+// =============================
+
+  app.get("/allPost",async(req,res)=>{
+    let result=await postCollection.find().toArray()
+    res.send(result)
+  })
+
+  // profile unik user get 
+  app.get("/unikUser", async(req,res)=>{
+    let query={}
+    if(req.query?.email){
+      query={email:req.query.email}
+    }
+    let result= await usersCollection.find(query).toArray();
+    res.send(result)
+  })
+
+
+  // update profile user get  devs
+  app.put("/updateUser/:id",async(req,res)=>{
+      let upId=req.params.id
+      let upData=req.body
+      let filter={_id : new ObjectId (upId)}
+      let options={upsert :true}
+      let updateProfile={
+        $set:{
+          name:upData.nameValue,
+          photo:upData.photoValue,
+          totalFrinds:upData.TolatFdValue,
+          banner:upData.bannerValue,
+          intro:upData.introValue,
+          Jobs:upData.JobsValue,
+          Profesonal:upData.profesonalValue,
+          School:upData.schoolValue,
+          Collage:upData.collageValue,
+          Lives:upData.LivesValue,
+          relations:upData.relationsValue,
+          Location:upData.LocationValue,
+        }
+      }
+      let result=await usersCollection.updateOne(filter,updateProfile,options)
+      res.send(result)
+
+  })
+
 
     // Connect the client to the server	(optional starting in v4.7)
     client.connect();
     // Send a ping to confirm a successful connection
     //     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    //     await client.close();
+  }
+   finally {
+
   }
 }
 run().catch(console.dir);
